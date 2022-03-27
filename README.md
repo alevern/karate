@@ -4063,15 +4063,15 @@ Karate has a [set of Java API-s](https://twitter.com/KarateDSL/status/1353969718
 Do note that if you choose the Java API, you will naturally lose some of the test-automation framework benefits such as HTML reports, parallel execution and [JavaScript](#the-karate-object) / [configuration](#configuration). You may have to rely on unit-testing frameworks or integrate additional dependencies.
 
 ### jbang
-[jbang](https://www.jbang.dev) is a great way for you to install and execute scripts that use Karate's Java API on any machine with minimal setup.  Note that jbang itself is [super-easy to install](https://github.com/jbangdev/jbang#installation) and there is even a "[Zero Install](https://github.com/jbangdev/jbang#zero-install)" option.
+[jbang](https://www.jbang.dev) is a great way for you to install and execute scripts that use Karate's Java API on any machine with minimal setup. Note that jbang itself is [super-easy to install](https://www.jbang.dev/documentation/guide/latest/installation.html) and there is even a "[Zero Install](https://www.jbang.dev/documentation/guide/latest/installation.html#zero-install)" option.
 
-Here below is an example jbang script that uses the Karate [Java API](#java-api) to do some useful work:
+Here below is an example jbang script that uses the Karate [Java API](#java-api) to do some useful work. Name the file as `javadsl.java` and run using the command: `jbang javadsl.java`.
 
 > please replace `RELEASE` with the exact version of Karate you intend to use if applicable
 
 ```java
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//DEPS com.intuit.karate:karate-core:RELEASE
+//DEPS com.intuit.karate:karate-core:RELEASE:all
 
 import com.intuit.karate.*;
 import java.util.List;
