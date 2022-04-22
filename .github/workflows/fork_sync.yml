@@ -12,12 +12,13 @@ jobs:
       uses: actions/checkout@v2
       with:
         ref: develop
+        token: ${{ secrets.PAT }}
     - name: "Update: develop"
       id: sync-develop
       uses: aormsby/Fork-Sync-With-Upstream-action@main 
       with:
         upstream_sync_repo: karatelabs/karate
-        target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+        target_repo_token: ${{ secrets.PAT }}
         upstream_sync_branch: develop
         target_sync_branch: develop
         upstream_pull_args: '-s recursive -Xours'#--rebase
