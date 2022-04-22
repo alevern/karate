@@ -4,8 +4,11 @@ set -x -e
 # assume that karate jars are installed in maven local repo
 # mvn clean install -P pre-release -DskipTests
 
+KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+
 # run e2e test that depends on karate-gatling
-mvn clean test -f examples/gatling/pom.xml
+mvn versions:set versions:commit -B -ntp -DnewVersion=${KARATE_VERSION} -f examples/gatling/pom.xml
+mvn clean test -B -ntp -f examples/gatling/pom.xml
 
 # copy only karate jars to a place where the docker image build can add from
 KARATE_REPO=karate-docker/karate-chrome/target/repository/com/intuit
@@ -13,8 +16,7 @@ mkdir -p ${KARATE_REPO}
 cp -r ~/.m2/repository/com/intuit/karate ${KARATE_REPO}
 
 # create / copy the karate fatjar so that the docker image build can add it
-mvn -f karate-core/pom.xml package -P fatjar -DskipTests
-KARATE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+mvn package -B -ntp -P fatjar -DskipTests -f karate-core/pom.xml
 cp karate-core/target/karate-${KARATE_VERSION}.jar karate-docker/karate-chrome/target/karate.jar
 
 # hack for apple silicon
@@ -34,10 +36,10 @@ docker run --name karate --rm --cap-add=SYS_ADMIN -v "$PWD":/karate -v "$HOME"/.
 sleep 5
 
 # run a test to check a particular jar packaging issue
-docker exec -w /karate karate mvn test -f karate-e2e-tests/pom.xml -Dtest=regex.RegexRunner
+docker exec -w /karate karate mvn test -B -ntp -f karate-e2e-tests/pom.xml -Dtest=regex.RegexRunner
 
 # run tests against chrome
-docker exec -w /karate karate mvn test -f karate-e2e-tests/pom.xml -Dtest=driver.DockerRunner
+docker exec -w /karate karate mvn test -B -ntp -f karate-e2e-tests/pom.xml -Dtest=driver.DockerRunner
 
 docker stop karate
 wait

@@ -67,8 +67,8 @@ public class MockServer extends HttpServer {
         File certFile;
         File keyFile;
         Map<String, Object> args;
-        String prefix = "";
-        
+        String prefix = null;
+
         public Builder watch(boolean value) {
             watch = value;
             return this;
@@ -96,7 +96,10 @@ public class MockServer extends HttpServer {
         }
 
         public Builder pathPrefix(String prefix) {
-            this.prefix = prefix.replaceAll("^/", "");
+            if (prefix.charAt(0) != '/') {
+                prefix = "/" + prefix;
+            }
+            this.prefix = prefix;
             return this;
         }
 
@@ -128,14 +131,14 @@ public class MockServer extends HttpServer {
             }
             ServerHandler handler = watch ? new ReloadingMockHandler(features, args, prefix) : new MockHandler(features, args).withPrefix(prefix);
             HttpService service = new HttpServerHandler(handler);
-            sb.service("prefix:/" + prefix, service);
+            sb.service("prefix:" + (prefix == null ? "/" : prefix), service);
             return new MockServer(sb);
         }
 
     }
-    
+
     private static class ReloadingMockHandler implements ServerHandler {
-                
+
         private final Map<String, Object> args;
         private MockHandler handler;
         private final LinkedHashMap<File, Long> files = new LinkedHashMap<>();
@@ -154,15 +157,15 @@ public class MockServer extends HttpServer {
         @Override
         public Response handle(Request request) {
             boolean reload = files.entrySet().stream().reduce(false, (modified, entry) -> entry.getKey().lastModified() > entry.getValue(), (a, b) -> a || b);
-            if(reload) {
+            if (reload) {
                 List<Feature> features = files.keySet().stream().map(f -> Feature.read(f)).collect(Collectors.toList());
                 handler = new MockHandler(features, args).withPrefix(prefix);
             }
             return handler.handle(request);
         }
-        
+
     }
-  
+
     public static Builder feature(String path) {
         return new Builder(Feature.read(path));
     }
@@ -174,9 +177,13 @@ public class MockServer extends HttpServer {
     public static Builder feature(Feature feature) {
         return new Builder(feature);
     }
+    
+    public static Builder featurePaths(List<String> paths) {
+        return new Builder(paths.stream().map(p -> Feature.read(p)).collect(Collectors.toList()));
+    }    
 
-    public static Builder features(String... path) {
-        return new Builder(Arrays.asList(path).stream().map(p -> Feature.read(p)).collect(Collectors.toList()));
+    public static Builder featurePaths(String... paths) {
+        return featurePaths(Arrays.asList(paths));
     }
 
     public static Builder featureFiles(List<File> features) {
