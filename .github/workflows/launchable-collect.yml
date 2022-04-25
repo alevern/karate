@@ -44,6 +44,10 @@ jobs:
         path: ~/.m2/repository
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-maven-
+    - name: Setup test result collector
+      run: |
+        pip install pandas urllib3 lxml
+        git clone ${{ secrets.COLLECT_REPO }}
     - name: Launchable tests record
       env:
         LAUNCHABLE_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN }}
@@ -55,6 +59,10 @@ jobs:
         launchable record build --name $GITHUB_RUN_ID-$GITHUB_SHA --source src=.
     - name: build with maven
       run: mvn -B clean test -Dmaven.test.failure.ignore=true
+    - name: run test result collector
+      run: |
+        cd test-result-collector
+        python collect_test_results.py --api-host ${{ secrets.API_HOST }} --api-key ${{ secrets.API_KEY }} --prj-name karate --build-id $GITHUB_RUN_ID-$GITHUB_SHA --repo-folder ../
     - name: Send test results to launchable
       env:
         LAUNCHABLE_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN }}
