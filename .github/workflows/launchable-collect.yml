@@ -90,10 +90,14 @@ jobs:
         launchable record tests --build $GITHUB_RUN_ID-$GITHUB_SHA maven ./karate-junit4/target/surefire-reports ./karate-robot/target/surefire-reports ./karate-core/target/surefire-reports ./karate-junit5/target/surefire-reports ./karate-mock-servlet/target/surefire-reports ./karate-demo/target/surefire-reports
     - name: stage commit sha
       run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git add current_sha.txt
-    - name: Commit & Push updated sha file
-      uses: actions-js/push@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        message: "update commit sha file"
-        branch: "develop"
+        git commit -m "update commit sha file"
+        git push
+        #    - name: Commit & Push updated sha file
+        #      uses: actions-js/push@master
+        #      with:
+        #        github_token: ${{ secrets.GITHUB_TOKEN }}
+        #        message: "update commit sha file" 
+        #        branch: "develop"
