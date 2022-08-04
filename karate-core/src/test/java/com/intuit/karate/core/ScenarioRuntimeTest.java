@@ -607,7 +607,7 @@ class ScenarioRuntimeTest {
                 "def myFn = function(x){ return { myVar: x } }",
                 "call myFn 'foo'"
         );
-        assertEquals(get("myVar"), "foo");
+        assertEquals(get("myVar"), "foo");      
     }
 
     @Test
@@ -725,6 +725,15 @@ class ScenarioRuntimeTest {
                 "def response = { odds: [1, 2], count: 2 }",
                 "match response == { odds: '#[$.count]', count: '#number' }"
         );
+    }
+    
+    @Test
+    void testMatchSchemaContainsDeep() {
+        run(
+                "def array = [ 'a', 'b' ]",
+                "def response = { foo: [ 'a', 'b' ] } ",
+                "match response contains deep { foo: '#(^array)' }"
+        );        
     }
 
     @Test

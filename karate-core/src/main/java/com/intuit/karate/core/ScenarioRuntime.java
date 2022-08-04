@@ -32,7 +32,6 @@ import com.intuit.karate.StringUtils;
 import com.intuit.karate.debug.DebugThread;
 import com.intuit.karate.graal.JsEngine;
 import com.intuit.karate.http.HttpClient;
-import com.intuit.karate.http.HttpRequestBuilder;
 import com.intuit.karate.http.ResourceType;
 import com.intuit.karate.shell.StringLogAppender;
 
@@ -62,6 +61,7 @@ public class ScenarioRuntime implements Runnable {
     public final boolean perfMode;
     public final boolean dryRun;
     public final LogAppender logAppender;
+    
     public boolean ignoringFailureSteps;
 
     public ScenarioRuntime(FeatureRuntime featureRuntime, Scenario scenario) {
@@ -78,29 +78,40 @@ public class ScenarioRuntime implements Runnable {
             logAppender = new StringLogAppender(false);
             if (background != null) {
                 config = new Config(background.engine.getConfig());
-                config.detach();
             } else {
                 config = new Config();
             }
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, null); // TODO fix constructor weirdness, see next 3 lines
+            engine = new ScenarioEngine(config, this, new HashMap(), logger);
             if (background != null) {
                 HttpClient client = featureRuntime.suite.clientFactory.create(engine);
                 engine.requestBuilder = background.engine.requestBuilder.copy(client);
             }
         } else if (caller.isSharedScope()) {
             logAppender = caller.parentRuntime.logAppender;
-            ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            Config config = parentEngine.getConfig();
-            config.detach();
-            Map<String, Variable> vars = caller.parentRuntime.engine.vars;
-            engine = new ScenarioEngine(config, this, vars, logger, parentEngine.requestBuilder.copy(null));
+            Map<String, Variable> vars;
+            Config config;
+            if (background != null) {
+                vars = background.engine.vars;
+                config = background.engine.getConfig();
+            } else {
+                vars = caller.getParentVars(false);
+                config = caller.getParentConfig(false);
+            }
+            engine = new ScenarioEngine(config, this, vars, logger);
         } else { // new, but clone and copy data
             logAppender = caller.parentRuntime.logAppender;
-            ScenarioEngine parentEngine = background == null ? caller.parentRuntime.engine : background.engine;
-            Config config = new Config(parentEngine.getConfig());
-            config.detach();
-            // in this case, parent variables are set via magic variables
-            engine = new ScenarioEngine(config, this, new HashMap(), logger, parentEngine.requestBuilder.copy(null));
+            Config config;
+            if (background != null) {
+                config = background.engine.getConfig();
+            } else {
+                config = caller.parentRuntime.engine.getConfig();
+            }
+            // in this case, parent variables are set via magic variables - see initMagicVariables()
+            // which means the variables are only in the JS engine - [ see ScenarioEngine.init() ]
+            // and not "visible" via ScenarioEngine constructor (vars)
+            // one consequence is that they won't show up in the debug variables view
+            // and more importantly don't get passed back to caller and float around, bloating memory
+            engine = new ScenarioEngine(new Config(config), this, new HashMap(), logger);
         }
         logger.setAppender(logAppender);
         actions = new ScenarioActions(engine);
@@ -114,14 +125,38 @@ public class ScenarioRuntime implements Runnable {
                 engine.requestBuilder = background.engine.requestBuilder.copy(client);
             }
             result.addStepResults(background.result.getStepResults());
-            Map<String, Variable> detached = background.engine.detachVariables();
-            detached.forEach((k, v) -> engine.vars.put(k, v));
+            Map<String, Variable> copy = background.engine.shallowCloneVariables();
+            copy.forEach((k, v) -> engine.vars.put(k, v));
         }
         dryRun = featureRuntime.suite.dryRun;
         tags = scenario.getTagsEffective();
         reportDisabled = perfMode ? true : tags.valuesFor("report").isAnyOf("false");
         selectedForExecution = isSelectedForExecution(featureRuntime, scenario, tags);
     }
+    
+    private Map<String, Object> initMagicVariables() {
+        Map<String, Object> map = new HashMap();
+        if (!caller.isNone()) {
+            // karate principle: parent variables are always "visible"
+            // so we inject the parent variables
+            // but they will be over-written by what is local to this scenario
+            if (!caller.isSharedScope()) {
+                // shallow clone variables if not shared scope
+                Map<String, Variable> copy = caller.getParentVars(true);
+                copy.forEach((k, v) -> map.put(k, v.getValue()));
+            }
+            map.putAll(caller.parentRuntime.magicVariables);
+            map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
+            map.put("__loop", caller.getLoopIndex());
+        }
+        if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
+            Map<String, Object> exampleData = scenario.getExampleData();
+            map.putAll(exampleData);
+            map.put("__row", exampleData);
+            map.put("__num", scenario.getExampleIndex());
+        }
+        return map;
+    }    
 
     public boolean isFailed() {
         return error != null || result.isFailed();
@@ -275,36 +310,6 @@ public class ScenarioRuntime implements Runnable {
         logger.error("{}", message);
     }
 
-    private Map<String, Object> initMagicVariables() {
-        Map<String, Object> map = new HashMap();
-        if (!caller.isNone()) {
-            // karate principle: parent variables are always "visible"
-            // so we inject the parent variables
-            // but they will be over-written by what is local to this scenario
-
-            if (caller.isSharedScope()) {
-                map.putAll(caller.parentRuntime.magicVariables);
-            } else {
-                // the shallow clone of variables is important
-                // otherwise graal / js functions in calling context get corrupted
-                caller.parentRuntime.engine.vars.forEach((k, v) -> map.put(k, v == null ? null : v.copy(false).getValue()));
-
-                // shallow copy magicVariables
-                map.putAll((Map<String, Object>) caller.parentRuntime.engine.shallowClone(caller.parentRuntime.magicVariables));
-            }
-
-            map.put("__arg", caller.arg == null ? null : caller.arg.getValue());
-            map.put("__loop", caller.getLoopIndex());
-        }
-        if (scenario.isOutlineExample() && !this.isDynamicBackground()) { // init examples row magic variables
-            Map<String, Object> exampleData = scenario.getExampleData();
-            map.putAll(exampleData);
-            map.put("__row", exampleData);
-            map.put("__num", scenario.getExampleIndex());
-        }
-        return map;
-    }
-
     private void evalConfigJs(String js, String displayName) {
         if (js == null || configFailed) {
             return;
@@ -379,8 +384,7 @@ public class ScenarioRuntime implements Runnable {
         }
         ScenarioEngine.set(engine);
         engine.init();
-        engine.getConfig().attach(engine.JS);
-        if (this.background != null) {
+        if (background != null) {
             ScenarioEngine backgroundEngine = background.engine;
             if (backgroundEngine.driver != null) {
                 engine.setDriver(backgroundEngine.driver);
@@ -509,7 +513,6 @@ public class ScenarioRuntime implements Runnable {
             } else {
                 stopped = true;
             }
-
             if (stopped && (!this.engine.getConfig().isContinueAfterContinueOnStepFailure() || !this.engine.isIgnoringStepErrors())) {
                 error = stepResult.getError();
                 logError(error.getMessage());
