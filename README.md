@@ -305,9 +305,9 @@ If you are a Java developer - Karate requires at least [Java](http://www.oracle.
 
 If you are new to programming or test-automation, refer to the options for [IDE support](https://github.com/karatelabs/karate/wiki/IDE-Support) and the [official IntelliJ plugin](https://plugins.jetbrains.com/plugin/19232-karate) is recommended. Other options are the [quickstart](#quickstart) or the [standalone executable](karate-netty#standalone-jar).
 
-If you *don't* want to use Java, you have the option of just downloading and extracting the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release). Try this especially if you don't have much experience with programming or test-automation. We recommend that you use the [Karate extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=kirkslota.karate-runner) - and with that, JavaScript, .NET and Python programmers will feel right at home.
+If you *don't* want to use Java, you have the option of just downloading and extracting the [ZIP release](https://github.com/intuit/karate/wiki/ZIP-Release). Try this especially if you don't have much experience with programming or test-automation. We recommend that you use the [Karate extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=karatelabs.karate) - and with that, JavaScript, .NET and Python programmers will feel right at home.
 
-Visual Studio Code can be used for Java (or Maven) projects as well. One reason to use it is the excellent [*debug support* that we have for Karate](https://twitter.com/KarateDSL/status/1167533484560142336).
+Both the official Visual Studio Code and IntelliJ plugins support step-through debugging of Karate tests.
 
 ## Maven
 All you need is available in the [`karate-core`](https://search.maven.org/artifact/com.intuit.karate/karate-core) artifact. You can run tests with this [directly](#parallel-execution), but teams can choose the JUnit variant (shown below) that pulls in JUnit 5 and [slightly improves the in-IDE experience](https://stackoverflow.com/a/65578167/143475).
@@ -649,6 +649,7 @@ Karate can run tests in parallel, and dramatically cut down execution time. This
 * You can use the returned `Results` object to check if any scenarios failed, and to even summarize the errors
 * [JUnit XML](https://wiki.jenkins-ci.org/display/JENKINS/JUnit+Plugin) reports can be generated in the "`reportDir`" path you specify, and you can easily configure your CI to look for these files after a build (for e.g. in `**/*.xml` or `**/karate-reports/*.xml`). Note that you have to call the `outputJunitXml(true)` method on the `Runner` "builder".
 * [Cucumber JSON reports](https://relishapp.com/cucumber/cucumber/docs/formatters/json-output-formatter) can be generated, except that the extension will be `.json` instead of `.xml`. Note that you have to call the `outputCucumberJson(true)` method on the `Runner` "builder".
+* HTML reports can be disabled by calling [`outputHtmlReport(false)`](https://github.com/karatelabs/karate/blob/v1.2.1.RC1/karate-core/src/main/java/com/intuit/karate/Runner.java#L515). Please note that some [user analytics is tracked](karate-core/src/test/resources/analytics.md) only when you view the built-in Karate HTML report.
 
 ### JUnit 4 Parallel Execution
 > Important: **do not** use the `@RunWith(Karate.class)` annotation. This is a *normal* JUnit 4 test class ! If you want to use JUnit 4, use the [`karate-junit4` Maven dependency](#maven) instead of `karate-junit5`.
